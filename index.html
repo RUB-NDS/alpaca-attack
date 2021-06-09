@@ -75,7 +75,7 @@
       application data confusion is possible. Of these, 119k web servers
       can be attacked using an exploitable application server. As a
       countermeasure, we propose the use of the Application Layer Protocol
-      Negotiation (ALPN) and Server Name Indication (SNI) extensions to
+      Negotiation (ALPN) and Server Name Indication (SNI) extensions in
       TLS to prevent these and other cross-protocol attacks.
     </p>
     <p>Although this vulnerability is very situational and can be challenging
@@ -232,7 +232,7 @@
 
     <h3>Can TLS mitigate these attacks at all?</h3>
 
-    <p>Two extensions to TLS can provide some protection to the application layer
+    <p>Two extensions in TLS can provide some protection to the application layer
       protocol: SNI and ALPN. With SNI, the client can let the server know about
       the hostname it wants to connect to, which is useful in virtual hosting
       configurations. Sadly, SNI is often misconfigured with an insecure fallback
