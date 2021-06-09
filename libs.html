@@ -62,6 +62,7 @@
 					<li><a href="#botan">BotanSSL</a></li>
 					<li><a href="#bearssl">BearSSL</a></li>
 					<li><a href="#wolfssl">WolfSSL</a></li>
+					<li><a href="#gnutls">GnuTLS</a></li>
 				</ul>
 			</li>
 		</ul>
@@ -107,7 +108,7 @@
 			support or acknowledge the ALPN extension is not a concern.
 		</p>
 
-		<h2>Recommended Behavior for SNI</h2>
+		<h2 id="sni">Recommended Behavior for SNI</h2>
 		<p>
 			Implementing these countermeasures is effective in
 			preventing same-protocol attacks on servers with different
@@ -133,7 +134,7 @@
 				hosts.</strong>
 		</p>
 
-		<h3 id="#sni-servers">SNI for Servers</h3>
+		<h3 id="sni-servers">SNI for Servers</h3>
 		<p class="important">
 			We recommend that the server aborts the handshake if the
 			client sends an SNI hostname that the server does not
@@ -151,7 +152,7 @@
 			not a concern.
 		</p>
 
-		<h3 id="#sni-clients">SNI for Clients</h3>
+		<h3 id="sni-clients">SNI for Clients</h3>
 		<p class="important">
 			We recommend that all clients are configured to send the
 			SNI extension with the hostname of the intended server.
@@ -648,7 +649,35 @@
 			the <code>wolfSSL_CTX_set_servername_callback</code>.
 		</p>
 
+		<h3 id="gnutls">GnuTLS</h3>
+		<h4 id="gnutls-alpn">ALPN Support in GnuTLS</h4>
+		<p>To support ALPN in GnuTLS, the client or server can call <a
+				href="https://gnutls.org/reference/gnutls-gnutls.html#gnutls-alpn-set-protocols"><code>gnutls_alpn_set_protocols</code></a>
+			before the handshake to configure the list of supported protocols. The function takes an array of
+			<code>gnutls_datum_t</code>
+			elements with protocol names. If the flag <code>GNUTLS_ALPN_MANDATORY</code> is set when calling that
+			function, the connection
+			is terminated when no matching protocol is found. The seelcted protocol can be obtained through
+			<code>gnutls_alpn_get_selected_protocol</code>.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with GnuTLS and ALPN, the
+			client and server should call <code>gnutls_alpn_set_protocol</code> with the
+			<code>GNUTLS_ALPN_MANDATORY</code>
+			flag set to enforce strict ALPN verification.
+		</p>
 
+		<h4 id="gnutls-sni">SNI Support in GnuTLS</h4>
+
+		<p>To support SNI in GnuTLS, the client should call <code>gnutls_server_name_set</code> before the handshake
+			starts to set the intended server name.
+			The server can retrieve the name sent by the client with <code>gnutls_server_name_get</code>.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with GnuTLS and SNI, the client should initialize it by
+			calling <code>gnutls_server_name_set</code>, and the server should set a hook function on
+			the ClientHello, call <code>gnutls_server_name_get</code> and manually verify the SNI hostname.
+		</p>
 
 	</section>
 
