@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<link rel="apple-touch-icon" sizes="180x180" href="media/img/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="media/img/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="media/img/favicon-16x16.png">
+	<link rel="manifest" href="media/img/site.webmanifest">
+	<meta name="theme-color" content="#ffffff">
+	<title>ALPACA Attack</title>
+	<link href="media/css/style.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+	<header id="top">
+		<h1>ALPACA Attack</h1>
+		<div class="logo"></div>
+	</header>
+	<section id="intro">
+		<ul class="toc">
+			<li><a href="index.html#paper">Paper</a></li>
+			<li><a href="index.html#question-answer">Q&amp;A</a></li>
+			<li><a href="libs.html">How to ALPN/SNI</a></li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>How to Mitigate ALPACA Attacks With ALPN and SNI</h2>
+		<p>Here we give instructions and references how to implement
+			strict verification of ALPN and SNI in common TLS
+			libraries. We thank the maintainers of these libraries for
+			their help in assembling these instructions, and apologize
+			for any errors we made in editing. Please let us know if
+			you find inaccuracies or areas for improvement.</p>
+		<ul>
+			<li><a href="#alpn">Recommended Behavior for ALPN</a>
+				<ul>
+					<li><a href="#alpn-servers">ALPN for Servers</a></li>
+					<li><a href="#alpn-clients">ALPN for Clients</a></li>
+				</ul>
+			</li>
+			<li><a href="#sni">Recommended Behavior for SNI</a>
+				<ul>
+					<li><a href="#sni-servers">SNI for Servers</a></li>
+					<li><a href="#sni-clients">SNI for Clients</a></li>
+				</ul>
+			</li>
+			<li><a href="#libs">ALPN and SNI Support in TLS
+					Libraries</a>
+				<ul>
+					<li><a href="#openssl">OpenSSL</a></li>
+					<li><a href="#java">Oracle Java</a></li>
+					<li><a href="#golang">GoLang</a> (crypto/tls)</li>
+					<li><a href="#schannel">Windows TLS Stack</a> (SChannel)</li>
+					<li><a href="#mbed">Mbed TLS</li>
+					<li><a href="#boringssl">BoringSSL</a></li>
+					<li><a href="#botan">BotanSSL</a></li>
+					<li><a href="#bearssl">BearSSL</a></li>
+					<li><a href="#wolfssl">WolfSSL</a></li>
+				</ul>
+			</li>
+		</ul>
+
+		<h2 id="alpn">Recommended Behavior for ALPN</h2>
+		<p>Implementing these countermeasures is effective in
+			preventing cross-protocol attacks irregardless of hostnames
+			and ports used for application servers. The most important
+			recommendations are highlighted below.</p>
+		<h3 id="alpn-servers">ALPN for Servers</h3>
+		<p class="important">
+			We recommend that the server aborts the handshake if the
+			client sends the ALPN extension, but the list of protocols
+			does not include a protocol supported by the server.
+		</p>
+		<p>
+			We also recommend that the server acknowledge the ALPN
+			extension, so the client can verify that the server
+			supports ALPN and selected a valid protocol.
+		</p>
+		<p>
+			We do not recommend that the server aborts the handshake if
+			the client does not send the ALPN extension, unless
+			backwards compatibility wth legacy clients that do not
+			support ALPN is not a concern.
+		</p>
+
+		<h3 id="alpn-clients">ALPN for Clients</h3>
+		<p class="important">
+			We recommend that the client sends the ALPN extension with
+			a list of the intended protocols, and the SNI extension
+			with the intended hostname.
+		</p>
+		<p>
+			We also recommend that the client aborts the handshake if
+			the server acknowledges the ALPN extension, but does not
+			select a protocol from the client list.
+		</p>
+		<p>
+			We do not recommend that the client aborts the handshake if
+			the server does not acknowledge the ALPN extension, unless
+			backwards compatibility with legacy servers that do not
+			support or acknowledge the ALPN extension is not a concern.
+		</p>
+
+		<h2>Recommended Behavior for SNI</h2>
+		<p>
+			Implementing these countermeasures is effective in
+			preventing same-protocol attacks on servers with different
+			hostnames, as well as cross-protocol attacks on servers
+			with different hostnames even if the ALPN countermeasures
+			can not be implemented.
+		</p>
+		<p>
+			Compared to ALPN, the SNI extension is more difficult to
+			configure, because the application server needs to be aware
+			of its configuration in the network. While the supported
+			protocol list for ALPN is usually determined statically at
+			time of development of the application server, the list of
+			acceptable hostnames for SNI is dependent on the location
+			of the server in the network, and how it is accessed by
+			clients, for example through the use of gateway and proxy
+			servers. We recognize that in complicated deployment
+			scenarios, implementing the following recommendations can
+			be challenging. <strong>In particular, implementing these
+				SNI-based countermeasures can potentially break legitimate
+				connections that depend on inappropriately configured
+				legacy environments, such as SNI fallback for unknown
+				hosts.</strong>
+		</p>
+
+		<h3 id="#sni-servers">SNI for Servers</h3>
+		<p class="important">
+			We recommend that the server aborts the handshake if the
+			client sends an SNI hostname that the server does not
+			recognize.
+		</p>
+		<p>
+			We also recommend that the server acknowledges the SNI
+			hostname to the client so the client can verify that the
+			server supports SNI and recognized the hostname.
+		</p>
+		<p>
+			We do not recommend that the server aborts the handshake if
+			the client does not send an SNI hostname, unless backwards
+			compatibility wth legacy clients that do not support SNI is
+			not a concern.
+		</p>
+
+		<h3 id="#sni-clients">SNI for Clients</h3>
+		<p class="important">
+			We recommend that all clients are configured to send the
+			SNI extension with the hostname of the intended server.
+		</p>
+		<p>
+			We also recommend that clients abort the handshake if the
+			server acknowledges the SNI hostname with a different
+			hostname than the one sent by the client.
+		</p>
+		<p>
+			We do not recommend that clients abort the handshake if the
+			server does not acknowledge the SNI hostname, unless
+			backwards compatibility with legacy servers that do not
+			support or acknowledge the SNI hostname is not a concern.
+		</p>
+
+
+
+		<h2 id="libs">ALPN and SNI Support in TLS Libraries</h2>
+		<h3 id="openssl">OpenSSL</h3>
+		<h4 id="openssl-alpn">ALPN Support in OpenSSL</h4>
+		<p>
+			ALPN selection in the client is supported
+			by <a
+				href="https://www.openssl.org/docs/man1.1.0/man3/SSL_set_alpn_protos.html">SSL_CTX_set_alpn_protos()</a>,
+			which takes as input a list of supported protocols for
+			negotiation.
+		</p>
+		<p>
+			ALPN selection in the server is supported by an application
+			callback set
+			with <a href="https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set_alpn_select_cb.html">
+				<code>SSL_CTX_set_alpn_select_cb()</code></a>. The
+			callback should return one of three values:
+		</p>
+		<ul>
+			<li>
+				<code>SSL_TLSEXT_ERR_OK</code>: ALPN protocol
+				selected. The connection continues.
+			</li>
+			<li>
+				<code>SSL_TLSEXT_ERR_ALERT_FATAL</code>: There was no
+				overlap between the client's supplied list and the
+				server configuration. The connection will be aborted.
+			</li>
+			<li>
+				<code>SSL_TLSEXT_ERR_NOACK</code>: ALPN protocol not
+				selected, e.g., because no ALPN protocols are
+				configured for this connection. The connection
+				continues.
+			</li>
+		</ul>
+		<p>Note that if there is no ALPN proposed in the
+			ClientHello, the callback is not invoked.</p>
+		<p class="important">
+			To protect against ALPACA attacks with OpenSSL and ALPN,
+			the client should configure the supported protocols
+			with <code>SSL_CTX_set_alpn_protos()</code>, and the
+			server should configure
+			the <code>SSL_CTX_set_alpn_select_cb</code> callback. If
+			an expected protocol identifier is provided, the server
+			should return <code>SSL_TLSEXT_ERR_OK</code>, otherwise
+			it should return <code>SSL_TLSEXT_ERR_ALERT_FATAL</code>.
+		</p>
+		<h4 id="openssl-sni">SNI Support in OpenSSL</h4>
+		<p>
+			The SNI hostname is set in the client by
+			calling <a
+				href="https://www.openssl.org/docs/man1.1.1/man3/SSL_set_tlsext_host_name.html">SSL_set_tlsext_host_name()</a>.
+		</p>
+		<p>
+			In the server, SNI selection is supported by an application
+			callback set
+			with <a href="https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set_tlsext_servername_callback.html">
+				<code>SSL_CTX_set_tlsext_servername_callback()</code></a>. The
+			callback should return one of four values:
+		<ul>
+			<li>
+				<code>SSL_TLSEXT_ERR_OK</code>: SNI hostname is
+				accepted. The connection continues.
+			</li>
+			<li>
+				<code>SSL_TLSEXT_ERR_ALERT_FATAL</code>: SNI hostname
+				is not accepted. The connection is aborted.
+			</li>
+			<li>
+				<code>SSL_TLSEXT_ERR_ALERT_WARNING</code>: SNI hostname
+				is not accepted, warning alert sent (not in
+				TLSv1.3). The connection continues.
+			</li>
+			<li>
+				<code>SSL_TLSEXT_ERR_NOACK</code>: SNI hostname is not
+				accepted and not acknowledged, e.g. if SNI has not been
+				configured. The connection continues.
+			</li>
+		</ul>
+		<p class="important">
+			To protect against ALPACA attacks with OpenSSL and SNI, the
+			client should configure the SNI hostname
+			with <code>SSL_set_tlsext_host_name()</code>, and the
+			server should
+			configure <code>SSL_CTX_set_tlsext_servername_callback()</code>. If
+			a matching SNI hostname is sent by the client, the server
+			should return
+			<code>SSL_TLSEXT_ERR_OK</code>, otherwise it should
+			return <code>SSL_TLSEXT_ERR_ALERT_FATAL</code>.
+			<!-- Note that if there is no SNI hostname in the
+	     ClientHello, the callback is not invoked.-->
+		</p>
+
+		<h3 id="java">Oracle Java</h3>
+		<h4 id="java-alpn">ALPN Support in Java</h4>
+		<p>
+			The TLS stack in Java implements strict ALPN verification by
+			default. The server and the client can configure ALPN support by passing
+			acceptable values to the <code>SSLParameters</code>
+			configuration object using
+			the <code>javax.net.ssl.SSLParameters.getSSLParameters</code> method,
+			which is then passed to the SSLEngine/SSLSocket to be
+			configured. Overlapping values will be selected.
+		</p>
+		<p>
+			Alternatively, the server can examine the values of the client
+			ALPN extension and its own SSLSocket/SSLEngine before a
+			protocol is negotiated, using
+			the <code>javax.net.ssl.SSLSocket.setHandshakeApplicationProtocolSelector</code>
+			callback function. The function must return a String value
+			that is in the client's list, and takes priority over
+			the <code>SSLParameters</code> list. The function can also
+			return the empty string if ALPN should not be acknowledged by
+			the server, and null (or a String value not in the client's
+			list) to abort the connection with
+			a <code>no_application_protocol</code> alert.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with Java and ALPN, the
+			client should set the list of supported protocols with
+			the <code>getSSLParameters</code> method, and the server
+			should either do the same or implement
+			the <code>setHandshakeApplicationProtocolSelect</code> and
+			return either a recognized protocol or null to abort the
+			handshake.
+		</p>
+
+		<h4 id="java-sni">SNI Support in Java</h4>
+		<p>
+			The server can use <code>SSLParameters.setSNIMatchers</code>
+			to enable strict hostname verification.
+		</p>
+		<p>
+			The client can set the SNI hostname
+			with <code>SSLParameters.setServerNames</code>.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with Java and SNI, the
+			client should set the SNI hostname
+			with <code>SSLParameters.setServerNames</code>, and the server
+			should set a SNI matcher
+			with <code>SSLParameters.setSNIMatchers</code> that returns
+			true if the hostname is recognized and false to abort the
+			handshake.
+		</p>
+
+		<h3 id="golang">GoLang (crypto/tls)</h3>
+		<h4 id="golang-alpn">ALPN Support in GoLang</h4>
+		<p>The client and server can be configured to negotiate a
+			protocol using the <code>tls.Config.NextProtos</code>
+			field. At the time of writing (2021-02-16), the handshake
+			will not be aborted on the client side if the server ignores
+			the clients ALPN extension, or on the server side if the
+			server does not support any of the clients requested
+			protocols. However, application developers can still
+			implement stricter enforcement by setting
+			the <code>tls.Config.VerifyConnection</code> callback,
+			although this is considered an advanced pattern.</p>
+		<p>Note: The default behavior might change in the future to
+			implement strict checking according to RFC 7301.</p>
+		<p class="important">
+			To protect against ALPACA attacks with GoLang and ALPN, the
+			client and server should configure the supported protocols
+			in <code>tls.Config.NextProtos</code>, and the server
+			should abort the handshake if no protocol can be
+			negotiated, using manual verification in the
+			<code>tls.Config.VerifyConnection</code> callback. If and
+			when the default behavior changes to enforce strict ALPN
+			verification, this custom callback can be removed.
+		</p>
+
+		<h4 id="golang-sni">SNI Support in GoLang</h4>
+		<p>The server does not strictly enforce the SNI
+			hostname. Instead, the SNI hostname is used to select the
+			right certificate if multiple certificates are
+			configured. However, application developers can still
+			implement stricter enforcement by setting the
+			<code>tls.Config.VerifyConnection</code>, although this is
+			considered an advanced pattern.
+		</p>
+		<p>On the client side, setting
+			the <code>tls.Config.ServerName</code> is required. This is
+			sent in the ClientHello and used to verify the certificate
+			provided by the server, unless certificate verification is
+			disabled.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with GoLang and SNI, the
+			client should configure the SNI hostname
+			in <code>tls.Config.ServerName</code>, and the server
+			should abort the handshake if the client provided an SNI
+			hostname that is not recognized, using manual verification
+			in the
+			<code>tls.Config.VerifyConnection</code> callback.
+		</p>
+
+		<h3 id="schannel">Windows TLS Stack (SChannel)</h3>
+		<h4 id="schannel-alpn">ALPN Support in the Windows TLS Stack</h4>
+		<p>
+			The Windows TLS stack implements RFC 7301 faithfully and
+			always terminates if the client and the server ALPN extensions
+			are configured and the server does not recognize a supported
+			protocol.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with the Windows TLS stack
+			and ALPN, the client and server should configure the supported
+			ALPN protocols.
+		</p>
+
+		<h4 id="schannel-sni">SNI Support in the Windows TLS Stack</h4>
+		<p>
+			The Windows TLS stack provides SNI information to the TLS
+			server application. It is up to the server application to handle
+			SNI in an application-specific manner. The Windows TLS stack has
+			no way to enforce disconnects on SNI mismatch: it does not own
+			the socket, and does not have any information about the
+			network. On the TLS client side, any caller-provided SNI
+			information is used for server certificate validation.</p>
+		<p class="important">
+			To protect against ALPACA attacks with the Windows TLS stack
+			and SNI, the client should configure the SNI hostname, and the
+			server should abort the handshake if the client provided an
+			SNI hostname that is not recognized, using manual
+			verification.
+		</p>
+
+		<h3 id="mbed">Mbed TLS</h3>
+		<h4 id="mbed-alpn">Mbed TLS</h4>
+		<p>
+			Mbed TLS implements RFC 7301 faithfully and always terminates
+			if the client and the server ALPN extensions are configured
+			and the server does not recognize a supported protocol.
+		</p>
+		<p>
+			The server and the client can enable ALPN by
+			defining <code>MBEDTLS_SSL_ALPN</code> in the configuration
+			script, and set the list of supported protocols
+			with <code>mbedtls_ssl_conf_alpn_protocols</code> (see the
+			example in <code>programs/ssl/ssl_client2.c</code>).
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with Mbed TLS and ALPN, the
+			client and server should configure the supported ALPN
+			protocols.
+		</p>
+
+		<h4 id="mbed-sni">SNI Support in Mbed TLS</h4>
+		<p>
+			Mbed TLS supports SNI with
+			the <code>MBEDTLS_SSL_SERVER_NAME_INDICATION</code> setting in
+			the configuration script, which is enabled by default.
+		</p>
+		<p>
+			The client can enable SNI by setting the hostname of the
+			server with <code>mbedtls_ssl_set_hostname()</code>.
+		</p>
+		<p>
+			The server can set a callback function
+			with <code>mbedtls_ssl_conf_sni()</code> and compare the
+			hostname in the third argument with the list of supported
+			hostnames. In case no match is found, the server can terminate
+			the connection by returning a non-zero value from the callback
+			(see the example <code>sni_callback()</code>
+			in <code>ssl_server2.c</code>).
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with Mbed TLS and SNI, the
+			client should configure the SNI hostname, and the server
+			should abort the handshake if the client provided an SNI
+			hostname that is not recognized, using manual verification.
+		</p>
+
+		<h3 id="boringssl">BoringSSL</h3>
+		<h4 id="boringssl-alpn">ALPN Support in BoringSSL</h4>
+		<p>
+			BoringSSL leaves server ALPN selection to an
+			application-supplied callback. In response to our findings,
+			BoringSSL has
+			made <a href="https://boringssl-review.googlesource.com/c/boringssl/+/45504">changes to allow
+				strict ALPN verification</a> by returning
+			<code>SSL_TLSEXT_ERR_ALERT_FATAL</code> from this callback (same as
+			OpenSSL).
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with BoringSSL and ALPN, the
+			server should return <code>SSL_TLSEXT_ERR_ALERT_FATAL</code>
+			in the ALPN callback to abort the connection if no matching
+			protocol is found.
+		</p>
+
+		<h4 id="boringssl-sni">SNI Support in BoringSSL</h4>
+		<p>
+			BoringSSL implements SNI support with the application-supplied
+			<a
+				href="https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_tlsext_servername_callback"><code>servername</code>
+				callback</a>. The application can terminate the connection by
+			returning <code>SSL_TLSEXT_ERR_ALERT_FATAL</code>.
+		</p>
+		<p>
+			Beside the servername callback, there are two more SNI-related
+			callbacks that offer more flexibility, and have other return
+			values to indicate an
+			error. The <a
+				href="https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_cert_cb"><code>cert</code>
+				callback</a> can return zero on error, and
+			the <a
+				href="https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_select_certificate_cb"><code>select_certificate</code>
+				callback can return <code>ssl_select_cert_error</code>.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with BoringSSL and SNI, the
+			server should return <code>SSL_TLSEXT_ERR_ALERT_FATAL</code>
+			from the servername callback if the clients provides an SNI
+			hostname that is not recognized, or equivalently return an
+			appropriate error from the <code>cert</code>
+			or <code>select_certificate</code> callback functions in this case.
+		</p>
+
+		<h3 id="botan">Botan</h3>
+		<h4 id="botan-alpn">ALPN Support in Botan</h4>
+		<p>
+			The server implements a
+			callback <code>tls_server_choose_app_protocol</code> which
+			takes a list of the protocols offered by the client, and
+			returns a string which is either empty (meaning to ignore the
+			ALPN) or some protocol, or it may choose to throw an exception
+			at that point which will cause the connection to be closed
+			with an alert. The default implementation returns an empty
+			string, thus ignoring ALPN.
+		</p>
+		<p>
+			On the client side, the ALPN protocol list can be set in the
+			<code>next_protocols</code> argument when creating
+			the <code>TLS::Client</code> instance.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with Botan and ALPN, the
+			server should implement
+			the <code>tls_server_choose_app_protocol</code> callback and
+			throw an exception if none of the protocols provided by the
+			client are recognized. The client should set the list of
+			protocols in the <code>next_protocols</code> argument
+			of <code>TLS::Client</code>.
+		</p>
+
+		<h4 id="botan-sni">SNI Support in Botan</h4>
+		<p>
+			The server invokes a callback
+			on <code>Credentials_Manager</code>, <code>cert_chain_single_type</code>,
+			which asks to return a certificate chain usable for the named
+			host. If the callback throws an exception if the named host
+			does not match an expected hostname, then the connection will be
+			closed.
+		</p>
+		<p>
+			Clients can send the SNI hostname by passing an
+			initialized <code>Server_Information</code> struct to
+			the <code>TLS::Client</code> constructor.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with Botan and SNI, the
+			server should implement
+			the <code>cert_chain_single_type</code> callback and throw an
+			exception if the SNI hostname provided by the client is not
+			recognized. The client should set the hostname in
+			the <code>Server_Information</code> struct of
+			the <code>TLS::Client</code> constructor.
+		</p>
+
+		<h3 id="bearssl">BearSSL</h3>
+		<h4 id="bearssl-alpn">ALPN Support in BearSSL</h4>
+		<p>
+			The client and server can be configured to negotiate a
+			protocol using
+			the <a
+				href="https://bearssl.org/apidoc/bearssl__ssl_8h.html#a095b916475f954c75317560266248cfe">br_ssl_engine_set_protocol_names()</a>
+			function. A mismatch can be detected by either the server
+			or the client, if the ALPN extension was used, and the list
+			of protocols sent by the client or resp. the protocol
+			chosen by the server is not part of the configured list.
+			In this case, the behavior depends on
+			the <a
+				href="https://bearssl.org/apidoc/bearssl__ssl_8h.html#a3971618f1312d236bf43e5d68f55a8cb"><code>BR_OPT_FAIL_ON_ALPN_MISMATCH</code></a>
+			flag: If the flag was set
+			with <code>br_ssl_engine_add_flag()</code>, a mismatch
+			implies a handshake failure with fatal alert 120. If the
+			flag was not set, then the handshake continues.
+		</p>
+		<p>
+			The selected protocol can be obtained with
+			<a
+				href="https://bearssl.org/apidoc/bearssl__ssl_8h.html#ae16e3128f38b8e26f322431e3bbc097e">br_ssl_engine_get_selected_protocol()</a>.
+			The
+			result is NULL if no protocol was selected, which can
+			happen on mismatch (with the BR_OPT_FAIL_ON_ALPN_MISMATCH
+			not set), or if the peer did not send an ALPN extension.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with BearSSL and ALPN,
+			the client and server should configure the list of
+			supported protocols
+			with <code>br_ssl_engine_set_protocol_names()</code> and
+			the server (and preferably the client, too) should set
+			the <code>BR_OPT_FAIL_ON_ALPN_MISMATCH</code> flag.
+		</p>
+		<h4 id="bearssl-sni">SNI Support in BearSSL</h4>
+		<p>
+			The client initializes its context
+			with <a
+				href="https://bearssl.org/apidoc/bearssl__ssl_8h.html#a847209e73dae3ec3a730041337c785b5"><code>br_ssl_client_reset()</code></a>,
+			which also takes an SNI hostname parameter.
+		</p>
+		<p>
+			The server can retrieve the SNI hostname
+			with <a
+				href="https://bearssl.org/apidoc/bearssl__ssl_8h.html#a2826d98b6f6a3871dd1c8dc2cc061be7"><code>br_ssl_engine_get_server_name()</code></a>
+			and implement strict checking manually in the callback
+			configured to select the certificate chain to be sent to
+			the client.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with BearSSL and SNI, the
+			client should set the SNI hostname with
+			the <code>server_name</code> parameter
+			in <code>br_ssl_client_reset()</code>. The server should
+			retrieve that hostname
+			with <code>br_ssl_engine_get_server_name()</code> in the
+			certificate chain selection callback, verify that the SNI
+			hostname provided by the client is recognized, and
+			otherwise abort the handshake.
+		</p>
+
+		<h3 id="wolfssl">WolfSSL</h3>
+		<h4 id="wolfssl-alpn">ALPN Support in WolfSSL</h4>
+		<p>To support ALPN, WolfSSL should be configured
+			with <code>--enable-alpn</code> or by
+			defining <code>HAVE_ALPN</code>
+			and <code>HAVE_TLS_EXTENSIONS</code> in a settings header. The
+			default behavior is configurable and must be set when ALPN is
+			initialized,
+			using <a
+				href="https://www.wolfssl.com/doxygen/group__Setup.html#ga175c36853fc902b7b3722f6f22a819f4"><code>wolfSSL_UseALPN()</code></a>
+			with the opion <code>WOLFSSL_ALPN_CONTINUE_ON_MISMATCH</code>
+			or <code>WOLFSSL_ALPN_FAILED_ON_MISMATCH</code>.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with WolfSSL and ALPN, the
+			client and server should enable ALPN by setting the appropriate
+			compilation flags, and initialize it by
+			calling <code>wolfSSL_UseALPN</code>. The server (and preferably
+			the client, too) should use
+			the <code>WOLFSSL_ALPN_FAILED_ON_MISMATCH</code> option to enforce
+			strict ALPN verification.
+		</p>
+
+		<h4 id="wolfssl-sni">SNI Support in WolfSSL</h4>
+
+		<p>To support SNI, WolfSSL should be configured
+			with <code>--enable-sni</code> or by
+			defining <code>HAVE_SNI</code>
+			and <code>HAVE_TLS_EXTENSIONS</code> in a settings header. The
+			client
+			can <a href="https://www.wolfssl.com/using-server-name-indication-sni-with-wolfssl/">set
+				the SNI hostname</a> with <code>wolfSSL_CTX_UseSNI</code>
+			or <code>woflSSL_UseSNI</code>, and the server can implement
+			custom verification using the callback
+			function <a
+				href="wolfSSL_CTX_set_servername_callback"><code>wolfSSL_CTX_set_servername_callback()</code></a>.
+		</p>
+		<p class="important">
+			To protect against ALPACA attacks with WolfSSL and SNI, the client
+			and server should enable SNI by setting the appropriate
+			compilation flags. The client should initialize it by
+			calling <code>wolfSSL_UseSNI</code>. The server should implement a
+			custom verification for the SNI hostname using
+			the <code>wolfSSL_CTX_set_servername_callback</code>.
+		</p>
+
+
+
+	</section>
+
+	<footer>
+		<p class="text-muted">Last updated 2021-02-16. The ALPACA
+			website is free to use under
+			a <a href="//creativecommons.org/publicdomain/zero/1.0/">CC0</a>
+			license. Web design by <a href="http://sarahmadden.com/">Sarah
+				Madden</a> and Christian Dresen. Adapted for ALPACA by Marcus
+			Brinkmann. The ALPACA logo was designed
+			by <a href="https://www.fiverr.com/tnhs_project">tnhs_project</a>.
+			| <a href="imprint.html">Imprint</a></p>
+	</footer>
+</body>
+
+</html>
