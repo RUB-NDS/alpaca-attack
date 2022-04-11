@@ -43,7 +43,8 @@
       In his thesis, Jannik examined the feasibility of the recommended
       countermeasures (ALPN, SNI) in TLS libraries, the state of countermeasures
       in TLS applications, and the deployment level of these countermeasures on
-      the Internet.
+      the Internet. A big thanks to Jannik for these results! If you have any questions
+      for him, you can contact him at jannik.hoelling(at)uni-paderborn(dot)de.
       </p>
   <h3>TLS Libraries</h3>
     <p>With respect to TLS libraries, Jannik found that all ten examined TLS libraries
@@ -207,8 +208,124 @@
 	validation are not necessary. Libraries that do not support
 	sending the alert should provide a possibility to do so.
 	</p>
-		
 
+  <h3>TLS Application Servers</h3>
+	<p>For application servers using TLS, Jannik found that of 14 servers, five (nginx,
+		exim, Filezilla, vsftp and Courier) now implemented strict
+		ALPN validation as a countermeasure to the ALPACA attack.
+		In addition, LightHTTPD already supported strict ALPN validation before
+		the ALPACA publication.</p>
+	<p>Sendmail only implemented countermeasures at the application protocol
+		level, and did not yet implement ALPN or SNI strict validation.</p>
+	<p>ProFTP and vsftpd were the only servers that implement strict SNI validation.</p>
+	<p>All servers with strict validation send the correct alert, except for FileZilla (which is using GnuTLS).</p>	
+	<p>Jannik also found a <a href="https://bugs.exim.org/show_bug.cgi?id=2815">bug in Exim's ALPN serialization</a> that was the result of a misunderstanding of the TLS library documentation.
+	<p>In summary, only vsftp implemented strict ALPN and SNI validation fully, while the other application servers have room for improvements.</p>		
+
+	<table>
+<thead>
+  <tr>
+    <th>Server</th>
+    <th>ALPN</th>
+    <th>SNI</th>
+    <th>Comment</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>nginx 1.21.4</td>
+    <td>Strict</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Apache 2.4.51</td>
+    <td>Permissive</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Lighthttpd 1.4.59</td>
+    <td>Strict</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Sendmail 8.17.1</td>
+    <td>No Support</td>
+    <td>No Support</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Postfix 3.6.3</td>
+    <td>No Support</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Exim 4.95</td>
+    <td>Strict</td>
+    <td>Permissive</td>
+    <td>Bug in Serialization</td>
+  </tr>
+  <tr>
+    <td>OpenSMTP 6.8.0</td>
+    <td>Permissive</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Dovecot 2.3.13</td>
+    <td>No Support</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Courier 1.1.5</td>
+    <td>Strict</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Cyrus 3.4.2</td>
+    <td>Permissive</td>
+    <td>SNI</td>
+    <td>ALPN Strict for HTTPS</td>
+  </tr>
+  <tr>
+    <td>Pure-FTPd 1.0.49</td>
+    <td>No Support</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>ProFTPD v1.3.8rc2</td>
+    <td>Permissive</td>
+    <td>Strict</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>FileZilla Server 1.1.0</td>
+    <td>Strict</td>
+    <td>Permissive</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>vsftpd 3.0.5</td>
+    <td>Strict</td>
+    <td>Strict</td>
+    <td></td>
+  </tr>
+</tbody>
+</table>
+
+		  <h3>Internet Scan</h3>
+    <p>Finally, Jannik also scanned the IPv4 address space for application servers with ALPN and SNI support.
+	His scan demonstrates that by the end of 2021, almost no application servers have been updated with
+	    strict ALPN or SNI validation. The one exception is the update of Exim 4.95, which caused 0.39%
+	    of all STMPS servers on port 465 to implement strict ALPN validation.
+	</p>
+	
 	</section>
 
 	<footer>
