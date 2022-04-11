@@ -45,9 +45,8 @@
       in TLS applications, and the deployment level of these countermeasures on
       the Internet.
       </p>
-		<h3>TLS Libraries</h3>
-    <p>
-			With respect to TLS libraries, Jannik found that all ten examined TLS libraries
+  <h3>TLS Libraries</h3>
+    <p>With respect to TLS libraries, Jannik found that all ten examined TLS libraries
       allowed the strict validation of the ALPN extension. Three libraries required a manual
       validation after the handshake in the client, and a callback function that is used
       during the handshake in the server. Three other libraries supported strict ALPN
@@ -64,38 +63,38 @@
 <tbody>
   <tr>
     <td>OpenSSL 1.1.1</td>
-    <td>Manually (Post-Handshake)</td>
+    <td>Manual (Post-Handshake)</td>
     <td>Callback</td>
     <td>Standard</td>
   </tr>
   <tr>
     <td>BoringSSL</td>
-    <td>Manually (Post-Handshake)</td>
+    <td>Manual (Post-Handshake)</td>
     <td>Callback</td>
     <td>Standard</td>
   </tr>
   <tr>
     <td>Botan 2.18.1</td>
-    <td>Manually (Post-Handshake)</td>
+    <td>Manual (Post-Handshake)</td>
     <td>Callback</td>
     <td>Standard</td>
   </tr>
   <tr>
     <td>GnuTLS 3.7.1</td>
-    <td>Optional</td>
-    <td>Optional</td>
-    <td>Manually</td>
+    <td>Option</td>
+    <td>Option</td>
+    <td>Manual (Post-Handshake)</td>
   </tr>
   <tr>
     <td>BearSSL 0.6</td>
-    <td>Optional</td>
-    <td>Optional</td>
+    <td>Option</td>
+    <td>Option</td>
     <td>Standard</td>
   </tr>
   <tr>
     <td>wolfSSL 4.8.1</td>
-    <td>Optional</td>
-    <td>Optional</td>
+    <td>Option</td>
+    <td>Option</td>
     <td>Standard</td>
   </tr>
   <tr>
@@ -124,7 +123,91 @@
   </tr>
 </tbody>
 </table>
-    
+
+    <p>For SNI support, Jannik found that the situation is more diverse and complicated.
+	    Although all libraries allowed strict SNI validation, many required a callback function in the server.
+	    For Java 11, strict SNI validation in the client was only an option for HTTPS, while other application
+	    level protocols require manual validation after the handshake. Three libraries (BearSSL, Go, Rustls)
+	    do not allow to send the proper TLS alert 112 in case of validation failure in the server.</p>
+<table>
+<thead>
+  <tr>
+    <th>Library</th>
+    <th>Strict ALPN Client</th>
+    <th>Strict ALPN Server</th>
+    <th>TLS Warning 112</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>OpenSSL 1.1.1</td>
+    <td>Option</td>
+    <td>Callback</td>
+    <td>Standard</td>
+  </tr>
+  <tr>
+    <td>BoringSSL</td>
+    <td>Option</td>
+    <td>Callback</td>
+    <td>Standard</td>
+  </tr>
+  <tr>
+    <td>Botan 2.18.1</td>
+    <td>Standard</td>
+    <td>Callback</td>
+    <td>Standard</td>
+  </tr>
+  <tr>
+    <td>GnuTLS 3.7.1</td>
+    <td>Standard</td>
+    <td>Callback</td>
+    <td>Manual (Post-Handshake)</td>
+  </tr>
+  <tr>
+    <td>BearSSL 0.6</td>
+    <td>Standard</td>
+    <td>Callback</td>
+    <td style="background-color:#fffc9e;">Not Possible</td>
+  </tr>
+  <tr>
+    <td>wolfSSL 4.8.1</td>
+    <td>Option</td>
+    <td>Standard</td>
+    <td>Standard</td>
+  </tr>
+  <tr>
+    <td>mbedTLS 2.18</td>
+    <td>Option</td>
+    <td>Callback</td>
+    <td>Standard</td>
+  </tr>
+  <tr>
+    <td>Java 11</td>
+    <td>Manual (Post-Handshake)</td>
+    <td>Option</td>
+    <td>Standard</td>
+  </tr>
+  <tr>
+    <td>Go 1.17</td>
+    <td>Standard</td>
+    <td>Manual (Post-Handshake)</td>
+    <td style="background-color:#fffc9e;">Not Possible</td>
+  </tr>
+  <tr>
+    <td>Rustls 0.20</td>
+    <td>Standard</td>
+    <td>Manual (Post-Handshake)</td>
+    <td style="background-color:#fffc9e;">Not Possible</td>
+  </tr>
+</tbody>
+</table>
+	<p>Jannik recommends that TLS libraries implement optional
+	or standard support for ALPN and SNI strict validation,
+	so that callback functions and manual post-handshake
+	validation are not necessary. Libraries that do not support
+	sending the alert should provide a possibility to do so.
+	</p>
+		
 
 	</section>
 
